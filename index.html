@@ -56,7 +56,8 @@
   .chart-card.full { grid-column: 1 / -1; }
   .chart-wrap { position: relative; width: 100%; }
   .chart-wrap canvas { max-height: 320px; }
-  .chart-wrap.tall canvas { max-height: 450px; }
+  .chart-wrap.tall { height: 360px; }
+  .chart-wrap.tall canvas { max-height: 360px; }
 
   /* Form */
   .form-section { background: var(--card-bg); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
@@ -133,6 +134,13 @@
   .stage-del { width:18px; height:18px; border-radius:50%; border:none; background:#fee2e2; color:var(--danger); cursor:pointer; font-size:11px; line-height:1; padding:0; flex-shrink:0; transition:background .15s; }
   .stage-del:hover { background:#fecaca; }
 
+  /* Chart pagination */
+  .chart-pager { display:flex; align-items:center; gap:8px; justify-content:center; margin-bottom:10px; font-size:13px; color:var(--text-secondary); }
+  .chart-pager button { padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:var(--text-secondary); transition:all .15s; }
+  .chart-pager button:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); }
+  .chart-pager button:disabled { opacity:.4; cursor:default; }
+  .chart-pager .page-info { min-width:80px; text-align:center; }
+
   /* Toast */
   .toast { position: fixed; top: 24px; right: 24px; z-index: 9999; padding: 12px 24px; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,.15); transform: translateX(120%); transition: transform .3s ease; pointer-events: none; }
   .toast.show { transform: translateX(0); }
@@ -151,6 +159,7 @@
     <div class="sub">Cost Management Dashboard · 收入 / 成本 / 净利润 / 成本构成</div>
   </div>
   <div style="display:flex;gap:8px">
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" onclick="loadTestData()">🎲 测试数据</button>
     <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" onclick="exportData()">📥 导出</button>
     <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" onclick="document.getElementById('import-file').click()">📤 导入</button>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
@@ -183,7 +192,7 @@
   </div>
   <div class="summary-grid" id="calc-summary"></div>
   <div class="charts-row">
-    <div class="chart-card"><h3>📊 成本构成占比</h3><div class="chart-wrap"><canvas id="chart-cost-breakdown"></canvas></div></div>
+    <div class="chart-card"><h3>📊 成本构成占比</h3><div class="chart-pager" id="pager-cost"></div><div class="chart-wrap"><canvas id="chart-cost-breakdown"></canvas></div></div>
     <div class="chart-card"><h3>📈 收支利润对比</h3><div class="chart-wrap"><canvas id="chart-profit-bar"></canvas></div></div>
   </div>
   <div class="chart-card full"><h3>📋 成本明细表</h3><div class="table-wrap" id="cost-table"></div></div>
@@ -219,7 +228,7 @@
   </div>
   <div class="charts-row">
     <div class="chart-card"><h3>📊 各品类利润对比</h3><div class="chart-wrap"><canvas id="chart-prod-profit"></canvas></div></div>
-    <div class="chart-card"><h3>👤 客户订单金额排行</h3><div class="chart-wrap tall"><canvas id="chart-prod-customer"></canvas></div></div>
+    <div class="chart-card"><h3>👤 客户订单金额排行</h3><div class="chart-pager" id="pager-cust"></div><div class="chart-wrap tall"><canvas id="chart-prod-customer"></canvas></div></div>
   </div>
   <div class="chart-card full"><h3>📋 生产明细表</h3><div class="table-wrap" id="prod-table"></div></div>
 </div>
@@ -243,8 +252,8 @@
 
   <div class="summary-grid" id="salary-summary"></div>
   <div class="charts-row">
-    <div class="chart-card"><h3>💰 工人月工资排行</h3><div class="chart-wrap tall"><canvas id="chart-salary-wage"></canvas></div></div>
-    <div class="chart-card"><h3>📦 加工件数排行</h3><div class="chart-wrap tall"><canvas id="chart-salary-pieces"></canvas></div></div>
+    <div class="chart-card"><h3>💰 工人月工资排行</h3><div class="chart-pager" id="pager-wage"></div><div class="chart-wrap tall"><canvas id="chart-salary-wage"></canvas></div></div>
+    <div class="chart-card"><h3>📦 加工件数排行</h3><div class="chart-pager" id="pager-pieces"></div><div class="chart-wrap tall"><canvas id="chart-salary-pieces"></canvas></div></div>
   </div>
   <div class="charts-row">
     <div class="chart-card"><h3>🔧 工序工资分布</h3><div class="chart-wrap"><canvas id="chart-salary-process"></canvas></div></div>
@@ -267,6 +276,31 @@ function toast(msg, type) {
 
 const COLORS = ['#4f46e5','#f43f5e','#f59e0b','#10b981','#06b6d4','#8b5cf6','#ec4899','#f97316','#14b8a6','#6366f1'];
 const STORAGE_KEY = 'jewelry_cost_mgr';
+const PAGE_SIZE = 10;
+
+// Chart pagination state
+let pageState = { wage:0, pieces:0, cust:0, cost:0 };
+
+function renderPager(pagerId, page, total, label, onChange) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const el = document.getElementById(pagerId);
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  const start = page * PAGE_SIZE + 1;
+  const end = Math.min((page + 1) * PAGE_SIZE, total);
+  el.innerHTML = `
+    <button onclick="event.stopPropagation();${onChange}(${page - 1})" ${page === 0 ? 'disabled' : ''}>← 上一页</button>
+    <span class="page-info">${start}-${end} / ${total} ${label}</span>
+    <button onclick="event.stopPropagation();${onChange}(${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}>下一页 →</button>`;
+}
+
+function paginatedData(arr, page) {
+  const totalPages = Math.ceil(arr.length / PAGE_SIZE);
+  if (totalPages <= 1) return { data: arr, page: 0 };
+  if (page >= totalPages) page = totalPages - 1;
+  if (page < 0) page = 0;
+  return { data: arr.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), page };
+}
 
 // ==================== Tab 切换 ====================
 document.querySelectorAll('.tab').forEach(tab => {
@@ -398,18 +432,28 @@ function updateCalc() {
       <div class="value" style="color:${d.profitRate>=0?'var(--success)':'var(--danger)'}">${fmtPct(d.profitRate)}</div>
     </div>`;
 
+  // Cost breakdown doughnut — paginated
   if (calcCharts.breakdown) calcCharts.breakdown.destroy();
   const ctx1 = document.getElementById('chart-cost-breakdown').getContext('2d');
   const pieData = d.items.filter(i => i.value > 0);
-  calcCharts.breakdown = new Chart(ctx1, {
-    type: 'doughnut',
-    data: { labels: pieData.map(i => i.label), datasets: [{ data: pieData.map(i => i.value), backgroundColor: COLORS.slice(0, pieData.length), borderWidth: 2, borderColor: '#fff' }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'right', labels: { padding: 16, usePointStyle: true, font: { size: 13 } } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ¥${fmt(ctx.raw)} (${fmtPct(ctx.raw/d.totalCost*100)})` } } }
-    }
-  });
+  window.drawCostChart = function(page) {
+    pageState.cost = page;
+    if (calcCharts.breakdown) calcCharts.breakdown.destroy();
+    const pg = paginatedData(pieData, page);
+    const labels = pg.data.map(i => i.label);
+    const values = pg.data.map(i => i.value);
+    calcCharts.breakdown = new Chart(ctx1, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: COLORS.slice(0, pg.data.length), borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right', labels: { padding: 16, usePointStyle: true, font: { size: 13 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ¥${fmt(ctx.raw)} (${fmtPct(ctx.raw/d.totalCost*100)})` } } }
+      }
+    });
+    renderPager('pager-cost', page, pieData.length, '项', 'drawCostChart');
+  };
+  drawCostChart(pageState.cost);
 
   if (calcCharts.profitBar) calcCharts.profitBar.destroy();
   const ctx2 = document.getElementById('chart-profit-bar').getContext('2d');
@@ -760,32 +804,39 @@ function renderProduction() {
       scales:{ y:{ ticks:{ callback:v => '¥'+fmt(v) }, grid:{ color:'#f1f5f9' } }, x:{ grid:{ display:false } } } }
   });
 
-  // Chart 4: 客户订单金额排行 (horizontal bar)
-  if (prodCharts.customer) prodCharts.customer.destroy();
-  const custSorted = custNames.map(c => ({ name:c, ...custMap[c] }));
-  custSorted.sort((a,b) => b.revenue - a.revenue);
-  prodCharts.customer = new Chart(document.getElementById('chart-prod-customer').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: custSorted.map(c => c.name),
-      datasets: [{
-        label: '订单总额 (¥)',
-        data: custSorted.map(c => c.revenue),
-        backgroundColor: custSorted.map((_,i) => COLORS[i % COLORS.length] + '99'),
-        borderColor: custSorted.map((_,i) => COLORS[i % COLORS.length]),
-        borderWidth: 2, borderRadius: 6
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { callback: v => '¥'+fmt(v) }, grid: { color: '#f1f5f9' } },
-        y: { ticks: { autoSkip: false, font:{ size:13 } }, grid: { display: false } }
+  // Chart 4: 客户订单金额排行 (paginated horizontal bar)
+  window.custSorted = custNames.map(c => ({ name:c, ...custMap[c] }));
+  window.custSorted.sort((a,b) => b.revenue - a.revenue);
+  window.drawCustChart = function(page) {
+    pageState.cust = page;
+    const pg = paginatedData(window.custSorted, page);
+    if (prodCharts.customer) prodCharts.customer.destroy();
+    document.getElementById('chart-prod-customer').parentElement.style.height = (pg.data.length * 36 + 30) + 'px';
+    prodCharts.customer = new Chart(document.getElementById('chart-prod-customer').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: pg.data.map(c => c.name),
+        datasets: [{
+          label: '订单总额 (¥)',
+          data: pg.data.map(c => c.revenue),
+          backgroundColor: pg.data.map((_,i) => COLORS[i % COLORS.length] + '99'),
+          borderColor: pg.data.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 2, borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { left: 70, right: 20, top: 5, bottom: 5 } },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { callback: v => '¥'+fmt(v) }, grid: { color: '#f1f5f9' } },
+          y: { ticks: { autoSkip: false, font:{ size:13 }, padding: 8 }, grid: { display: false } }
+        }
       }
-    }
-  });
+    });
+    renderPager('pager-cust', page, window.custSorted.length, '客户', 'drawCustChart');
+  }
+  drawCustChart(pageState.cust);
 
   // Table — group by customer
   const custOrder = []; // ordered list of customers
@@ -945,61 +996,71 @@ function renderSalary() {
   const sorted = salaryList.map((d,i) => ({...d, wage: wages[i], idx: i}));
   sorted.sort((a,b) => b.wage - a.wage);
 
-  // Chart 1: 工人月工资排行 (horizontal bar, sorted)
-  if (salaryCharts.wage) salaryCharts.wage.destroy();
-  salaryCharts.wage = new Chart(document.getElementById('chart-salary-wage').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: sorted.map(d => d.name),
-      datasets: [{
-        label: '月工资 (¥)',
-        data: sorted.map(d => d.wage),
-        backgroundColor: sorted.map((_,i) => COLORS[i % COLORS.length] + '99'),
-        borderColor: sorted.map((_,i) => COLORS[i % COLORS.length]),
-        borderWidth: 2,
-        borderRadius: 6
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true, maintainAspectRatio: false,
-      layout: { padding: { left: 10, right: 20 } },
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { callback: v => '¥'+fmt(v) }, grid: { color: '#f1f5f9' } },
-        y: { grid: { display: false }, ticks: { font: { size: 13 }, padding: 4, autoSkip: false } }
+  // Chart 1: 工人月工资排行 (paginated horizontal bar)
+  window.drawWageChart = function(page) {
+    pageState.wage = page;
+    const pg = paginatedData(sorted, page);
+    if (salaryCharts.wage) salaryCharts.wage.destroy();
+    document.getElementById('chart-salary-wage').parentElement.style.height = (pg.data.length * 36 + 30) + 'px';
+    salaryCharts.wage = new Chart(document.getElementById('chart-salary-wage').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: pg.data.map(d => d.name),
+        datasets: [{
+          label: '月工资 (¥)',
+          data: pg.data.map(d => d.wage),
+          backgroundColor: pg.data.map((_,i) => COLORS[i % COLORS.length] + '99'),
+          borderColor: pg.data.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 2, borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { left: 70, right: 20, top: 5, bottom: 5 } },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { callback: v => '¥'+fmt(v) }, grid: { color: '#f1f5f9' } },
+          y: { grid: { display: false }, ticks: { font: { size: 14 }, padding: 10, autoSkip: false } }
+        }
       }
-    }
-  });
+    });
+    renderPager('pager-wage', page, sorted.length, '人', 'drawWageChart');
+  }
+  drawWageChart(pageState.wage);
 
-  // Chart 2: 加工件数排行 (horizontal bar, sorted by pieces)
+  // Chart 2: 加工件数排行 (paginated horizontal bar)
   const sortedByPieces = [...salaryList].map((d,i) => ({...d, idx:i}));
   sortedByPieces.sort((a,b) => b.pieces - a.pieces);
-  if (salaryCharts.pieces) salaryCharts.pieces.destroy();
-  salaryCharts.pieces = new Chart(document.getElementById('chart-salary-pieces').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: sortedByPieces.map(d => d.name),
-      datasets: [{
-        label: '完成件数',
-        data: sortedByPieces.map(d => d.pieces),
-        backgroundColor: sortedByPieces.map((_,i) => COLORS[i % COLORS.length] + '99'),
-        borderColor: sortedByPieces.map((_,i) => COLORS[i % COLORS.length]),
-        borderWidth: 2,
-        borderRadius: 6
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true, maintainAspectRatio: false,
-      layout: { padding: { left: 10, right: 20 } },
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { callback: v => fmt(v)+'件' }, grid: { color: '#f1f5f9' } },
-        y: { grid: { display: false }, ticks: { font: { size: 13 }, padding: 4, autoSkip: false } }
+  window.drawPiecesChart = function(page) {
+    pageState.pieces = page;
+    const pg = paginatedData(sortedByPieces, page);
+    if (salaryCharts.pieces) salaryCharts.pieces.destroy();
+    document.getElementById('chart-salary-pieces').parentElement.style.height = (pg.data.length * 36 + 30) + 'px';
+    salaryCharts.pieces = new Chart(document.getElementById('chart-salary-pieces').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: pg.data.map(d => d.name),
+        datasets: [{
+          label: '完成件数',
+          data: pg.data.map(d => d.pieces),
+          backgroundColor: pg.data.map((_,i) => COLORS[i % COLORS.length] + '99'),
+          borderColor: pg.data.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 2, borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { left: 70, right: 20, top: 5, bottom: 5 } },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { callback: v => fmt(v)+'件' }, grid: { color: '#f1f5f9' } },
+          y: { grid: { display: false }, ticks: { font: { size: 14 }, padding: 10, autoSkip: false } }
+        }
       }
-    }
-  });
+    });
+    renderPager('pager-pieces', page, sortedByPieces.length, '人', 'drawPiecesChart');
+  }
+  drawPiecesChart(pageState.pieces);
 
   // Chart 3: 工序工资分布 (doughnut)
   if (salaryCharts.process) salaryCharts.process.destroy();
@@ -1090,6 +1151,67 @@ function renderSalary() {
   });
   tableHtml += `<tr style="font-weight:700;background:#eef2ff"><td colspan="2"><strong>合计</strong></td><td class="text-right">${fmt(totalPieces)} 件</td><td class="text-right">¥${fmt(avgPrice)}</td><td class="text-right">¥${fmt(totalWage)}</td><td class="text-center">—</td></tr></tbody></table>`;
   document.getElementById('salary-table').innerHTML = tableHtml;
+}
+
+// ==================== 测试数据 ====================
+function loadTestData() {
+  if (!confirm('将替换当前数据为大量测试数据（用于看分页效果），确定？')) return;
+
+  // 18 项费用
+  costIncome = 580000;
+  costItems = [
+    {name:'宝石原料',value:120000},{name:'贵金属原料',value:85000},{name:'设计费',value:22000},
+    {name:'铸造人工',value:45000},{name:'打磨人工',value:38000},{name:'镶嵌人工',value:52000},
+    {name:'抛光人工',value:28000},{name:'电镀费',value:15000},{name:'设备折旧',value:12000},
+    {name:'模具费',value:18000},{name:'包装材料',value:8000},{name:'物流运输',value:6000},
+    {name:'水电费',value:5000},{name:'质检费',value:7000},{name:'办公耗材',value:3000},
+    {name:'维修保养',value:4000},{name:'培训费',value:2000},{name:'其他杂费',value:5000},
+  ];
+
+  // 15 个品类，8 个客户
+  prodStages = ['设计','铸造','打磨','镶嵌','质检','电镀','抛光','包装'];
+  normalizeProdStages();
+  prodList = [
+    {customer:'周大福', name:'钻戒', qty:45, revenue:195000, stages:[5000,12000,8000,20000,3000,0,0,2000]},
+    {customer:'周大福', name:'吊坠', qty:60, revenue:85000, stages:[3500,6000,5000,9000,2000,0,0,1500]},
+    {customer:'周大福', name:'耳钉', qty:80, revenue:45000, stages:[2000,4000,3000,5000,1500,0,0,1000]},
+    {customer:'老凤祥', name:'项链', qty:40, revenue:128000, stages:[4000,8000,6000,10000,2500,2000,0,1800]},
+    {customer:'老凤祥', name:'手镯', qty:35, revenue:98000, stages:[3000,10000,7000,8000,2000,1500,0,1500]},
+    {customer:'老凤祥', name:'戒指', qty:50, revenue:72000, stages:[2500,7000,5000,6000,1800,0,0,1200]},
+    {customer:'六福', name:'耳环', qty:55, revenue:62000, stages:[2500,5000,4000,6000,1800,0,1200,1200]},
+    {customer:'六福', name:'胸针', qty:25, revenue:35000, stages:[2000,4000,3000,5000,1500,0,1000,1000]},
+    {customer:'金至尊', name:'手链', qty:30, revenue:55000, stages:[3000,5000,4000,7000,2000,0,0,1300]},
+    {customer:'金至尊', name:'脚链', qty:20, revenue:28000, stages:[2000,3500,2500,4500,1500,0,0,900]},
+    {customer:'谢瑞麟', name:'钻石项链', qty:12, revenue:320000, stages:[8000,15000,10000,25000,5000,3000,0,3000]},
+    {customer:'谢瑞麟', name:'宝石戒指', qty:18, revenue:180000, stages:[5000,12000,8000,18000,3000,0,0,2500]},
+    {customer:'潮宏基', name:'情侣对戒', qty:40, revenue:145000, stages:[4000,9000,6000,15000,2500,0,0,2000]},
+    {customer:'钻石世家', name:'求婚钻戒', qty:8, revenue:420000, stages:[10000,20000,12000,35000,5000,0,0,5000]},
+    {customer:'钻石世家', name:'纪念项链', qty:6, revenue:280000, stages:[6000,15000,9000,22000,4000,0,0,3500]},
+  ];
+
+  // 25 个工人
+  const processes = ['铸造','打磨','镶嵌','抛光','电镀','质检','包装'];
+  const surnames = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩朱秦尤许何吕施张';
+  salaryList = [];
+  for (let i = 0; i < 25; i++) {
+    const proc = processes[i % processes.length];
+    salaryList.push({
+      name: surnames[i] + '师傅',
+      process: proc,
+      pieces: 30 + Math.floor(Math.random() * 120),
+      price: 80 + Math.floor(Math.random() * 160),
+    });
+  }
+
+  // Reset pagination
+  pageState = { wage:0, pieces:0, cust:0, cost:0 };
+  saveData();
+  document.getElementById('income').value = costIncome;
+  renderProdStageForm();
+  updateCalc();
+  renderProduction();
+  renderSalary();
+  toast('已加载 25 人 / 15 品类 / 18 费用 测试数据', 'success');
 }
 
 // ==================== 初始化 ====================
