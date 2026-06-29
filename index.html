@@ -85,6 +85,8 @@
 
   /* Table */
   .table-wrap { overflow-x: auto; margin-top: 12px; }
+  .table-divider { border-top: 1px solid var(--border); margin: 20px 0 0 0; padding-top: 16px; }
+  .table-divider h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead { background: #f8fafc; }
   th { padding: 10px 12px; text-align: left; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid var(--border); white-space: nowrap; font-size: 13px; }
@@ -175,7 +177,19 @@
 <div class="main">
 
 <!-- ==================== 模块一：计算成本 ==================== -->
+<!-- 布局：图表置顶 → 汇总卡片 → 表单+明细表合并 -->
 <div class="module active" id="mod-calculator">
+
+  <!-- 图表区（置顶） -->
+  <div class="charts-row">
+    <div class="chart-card"><h3>📊 成本构成占比</h3><div class="chart-pager" id="pager-cost"></div><div class="chart-wrap"><canvas id="chart-cost-breakdown"></canvas></div></div>
+    <div class="chart-card"><h3>📈 收支利润对比</h3><div class="chart-wrap"><canvas id="chart-profit-bar"></canvas></div></div>
+  </div>
+
+  <!-- 汇总卡片 -->
+  <div class="summary-grid" id="calc-summary"></div>
+
+  <!-- 费用数据表单 + 成本明细表（合并） -->
   <div class="form-section">
     <h3>📝 <span id="cost-form-tag" class="form-tag add">新增</span> 费用数据</h3>
     <div class="form-grid">
@@ -189,18 +203,32 @@
       <button class="btn btn-primary" onclick="saveCalc()" style="margin-left:auto;">💾 保存并计算</button>
       <button class="btn btn-outline" onclick="resetCalcDemo()">↺ 恢复默认</button>
     </div>
+    <!-- 成本明细表（内嵌在表单区域下方） -->
+    <div class="table-divider">
+      <h4>📋 成本明细表</h4>
+      <div class="table-wrap" id="cost-table"></div>
+    </div>
   </div>
-  <div class="summary-grid" id="calc-summary"></div>
-  <div class="charts-row">
-    <div class="chart-card"><h3>📊 成本构成占比</h3><div class="chart-pager" id="pager-cost"></div><div class="chart-wrap"><canvas id="chart-cost-breakdown"></canvas></div></div>
-    <div class="chart-card"><h3>📈 收支利润对比</h3><div class="chart-wrap"><canvas id="chart-profit-bar"></canvas></div></div>
-  </div>
-  <div class="chart-card full"><h3>📋 成本明细表</h3><div class="table-wrap" id="cost-table"></div></div>
 </div>
 
 <!-- ==================== 模块二：生产分布 ==================== -->
+<!-- 布局：图表置顶 → 汇总卡片 → 表单 → 明细表 -->
 <div class="module" id="mod-production">
-  <!-- 增改表单 -->
+
+  <!-- 图表区（置顶） -->
+  <div class="charts-row">
+    <div class="chart-card"><h3>🏭 各品类生产成本分布</h3><div class="chart-wrap"><canvas id="chart-prod-category"></canvas></div></div>
+    <div class="chart-card"><h3>📐 生产阶段成本拆分（堆叠图）</h3><div class="chart-wrap"><canvas id="chart-prod-stage"></canvas></div></div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card"><h3>📊 各品类利润对比</h3><div class="chart-wrap"><canvas id="chart-prod-profit"></canvas></div></div>
+    <div class="chart-card"><h3>👤 客户订单金额排行</h3><div class="chart-pager" id="pager-cust"></div><div class="chart-wrap tall"><canvas id="chart-prod-customer"></canvas></div></div>
+  </div>
+
+  <!-- 汇总卡片 -->
+  <div class="summary-grid" id="prod-summary"></div>
+
+  <!-- 品类数据表单 -->
   <div class="form-section">
     <h3>📝 <span id="prod-form-tag" class="form-tag add">新增</span> 品类数据</h3>
     <div class="form-grid">
@@ -221,20 +249,28 @@
     </div>
   </div>
 
-  <div class="summary-grid" id="prod-summary"></div>
-  <div class="charts-row">
-    <div class="chart-card"><h3>🏭 各品类生产成本分布</h3><div class="chart-wrap"><canvas id="chart-prod-category"></canvas></div></div>
-    <div class="chart-card"><h3>📐 生产阶段成本拆分（堆叠图）</h3><div class="chart-wrap"><canvas id="chart-prod-stage"></canvas></div></div>
-  </div>
-  <div class="charts-row">
-    <div class="chart-card"><h3>📊 各品类利润对比</h3><div class="chart-wrap"><canvas id="chart-prod-profit"></canvas></div></div>
-    <div class="chart-card"><h3>👤 客户订单金额排行</h3><div class="chart-pager" id="pager-cust"></div><div class="chart-wrap tall"><canvas id="chart-prod-customer"></canvas></div></div>
-  </div>
+  <!-- 生产明细表 -->
   <div class="chart-card full"><h3>📋 生产明细表</h3><div class="table-wrap" id="prod-table"></div></div>
 </div>
 
 <!-- ==================== 模块三：工资分布 ==================== -->
+<!-- 布局：图表置顶 → 汇总卡片 → 表单 → 明细表 -->
 <div class="module" id="mod-salary">
+
+  <!-- 图表区（置顶） -->
+  <div class="charts-row">
+    <div class="chart-card"><h3>💰 工人月工资排行</h3><div class="chart-pager" id="pager-wage"></div><div class="chart-wrap tall"><canvas id="chart-salary-wage"></canvas></div></div>
+    <div class="chart-card"><h3>📦 加工件数排行</h3><div class="chart-pager" id="pager-pieces"></div><div class="chart-wrap tall"><canvas id="chart-salary-pieces"></canvas></div></div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card"><h3>🔧 工序工资分布</h3><div class="chart-wrap"><canvas id="chart-salary-process"></canvas></div></div>
+    <div class="chart-card"><h3>📊 件数区间分布</h3><div class="chart-wrap"><canvas id="chart-salary-range"></canvas></div></div>
+  </div>
+
+  <!-- 汇总卡片 -->
+  <div class="summary-grid" id="salary-summary"></div>
+
+  <!-- 工人数据表单 -->
   <div class="form-section">
     <h3>📝 <span id="salary-form-tag" class="form-tag add">新增</span> 工人数据</h3>
     <div class="form-grid">
@@ -250,15 +286,7 @@
     </div>
   </div>
 
-  <div class="summary-grid" id="salary-summary"></div>
-  <div class="charts-row">
-    <div class="chart-card"><h3>💰 工人月工资排行</h3><div class="chart-pager" id="pager-wage"></div><div class="chart-wrap tall"><canvas id="chart-salary-wage"></canvas></div></div>
-    <div class="chart-card"><h3>📦 加工件数排行</h3><div class="chart-pager" id="pager-pieces"></div><div class="chart-wrap tall"><canvas id="chart-salary-pieces"></canvas></div></div>
-  </div>
-  <div class="charts-row">
-    <div class="chart-card"><h3>🔧 工序工资分布</h3><div class="chart-wrap"><canvas id="chart-salary-process"></canvas></div></div>
-    <div class="chart-card"><h3>📊 件数区间分布</h3><div class="chart-wrap"><canvas id="chart-salary-range"></canvas></div></div>
-  </div>
+  <!-- 工资明细表 -->
   <div class="chart-card full"><h3>📋 工资明细表</h3><div class="table-wrap" id="salary-table"></div></div>
 </div>
 
@@ -464,6 +492,7 @@ function updateCalc() {
       scales: { y: { ticks: { callback: v => '¥'+fmt(v) }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
   });
 
+  // 成本明细表现在渲染在 form-section 内部的 #cost-table
   document.getElementById('cost-table').innerHTML =
     `<table><thead><tr><th>费用项目</th><th class="text-right">金额 (¥)</th><th class="text-right">占比</th><th>占比图示</th><th class="text-center">操作</th></tr></thead><tbody>` +
     d.items.map((i, idx) => {
@@ -556,20 +585,21 @@ function getDefaultProdData() {
   ];
 }
 
+/* ==================== localStorage 核心 ==================== */
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const d = JSON.parse(saved);
       prodList = d.prod || getDefaultProdData();
-      // Migrate old prod data: if no customer field, use defaults
+      // 数据迁移：旧版 prod 数据没有 customer 字段
       if (prodList.length > 0 && !('customer' in prodList[0])) {
         prodList = getDefaultProdData();
       }
       costItems = d.costs || getDefaultCostItems();
       costIncome = d.costIncome || 158000;
       prodStages = d.prodStages || [...DEFAULT_PROD_STAGES];
-      // Migrate: old salary format has 'role', new format has 'name' + 'process'
+      // 数据迁移：新版 salary 有 name 字段，旧版为 role
       const rawSalary = d.salary;
       if (rawSalary && rawSalary.length > 0 && rawSalary[0].name !== undefined) {
         salaryList = rawSalary;
@@ -579,21 +609,26 @@ function loadData() {
       return;
     }
   } catch(e) {}
+  // 无存储数据时回退到默认值
   prodList = getDefaultProdData();
   salaryList = getDefaultSalaryData();
   costItems = getDefaultCostItems();
   costIncome = 158000;
   prodStages = [...DEFAULT_PROD_STAGES];
 }
+
 function saveData() {
+  // 同步阶段名称（从可编辑输入框）
   for (let i = 0; i < prodStages.length; i++) {
     const inp = document.getElementById('prod_sname_'+i);
     if (inp) prodStages[i] = inp.value.trim() || DEFAULT_PROD_STAGES[i % DEFAULT_PROD_STAGES.length];
   }
+  // payload 包含所有状态数据
   const payload = { prod: prodList, salary: salaryList, costs: costItems, costIncome, prodStages };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   return payload;
 }
+/* ==================== localStorage 核心 END ==================== */
 
 function exportData() {
   const payload = saveData();
@@ -731,7 +766,7 @@ let prodCharts = {};
 
 function renderProduction() {
   if (prodList.length === 0) {
-    document.getElementById('prod-summary').innerHTML = '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无数据，请通过上方表单添加品类</div>';
+    document.getElementById('prod-summary').innerHTML = '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无数据，请通过下方表单添加品类</div>';
     document.getElementById('prod-table').innerHTML = '';
     Object.values(prodCharts).forEach(c => { try { c.destroy(); } catch(e){} });
     prodCharts = {};
@@ -851,7 +886,6 @@ function renderProduction() {
         const cost = catCosts[i], profit = catProfits[i], pr = revenues[i] > 0 ? (profit/revenues[i]*100) : 0;
         const unitCost = quantities[i] > 0 ? cost/quantities[i] : 0;
         custRevenue += revenues[i]; custCost += cost; custQty += quantities[i];
-        // Build NO column-1 cell; rowspan handles it
         rows.push(`<tr>
           <td style="text-align:left"><strong>${d.name}</strong></td>
           <td class="text-right">${quantities[i]} 件</td>
@@ -865,10 +899,9 @@ function renderProduction() {
       }
     });
     const custProfit = custRevenue - custCost;
-    // Prepend rowspan cell to first row only; other rows skip col 1 (covered by rowspan)
     const spanN = rows.length + 1;
     const custCell = `<td rowspan="${spanN}" style="vertical-align:top;background:#f1f5f9;font-weight:700"><strong>${cust}</strong><br><span style="font-size:12px;color:var(--text-secondary);font-weight:400">${rows.length} 品类 / ${custQty} 件</span></td>`;
-    rows[0] = '<tr>' + custCell + rows[0].substring(4); // prepend rowspan to first <tr>
+    rows[0] = '<tr>' + custCell + rows[0].substring(4);
     tableHtml += rows.join('');
     tableHtml += `<tr style="background:#fafafa;font-size:13px"><td style="color:var(--text-secondary)"><em>小计</em></td><td class="text-right">${custQty} 件</td><td class="text-right">¥${fmt(custRevenue)}</td><td class="text-right">¥${fmt(custCost)}</td><td class="text-right">${custProfit>=0 ? '<span class="profit-positive">+¥'+fmt(custProfit)+'</span>' : '<span class="profit-negative">¥'+fmt(custProfit)+'</span>'}</td><td class="text-right">${fmtPct(custRevenue>0?custProfit/custRevenue*100:0)}</td><td class="text-right">—</td><td class="text-center">—</td></tr>`;
   });
@@ -969,7 +1002,7 @@ let salaryCharts = {};
 
 function renderSalary() {
   if (salaryList.length === 0) {
-    document.getElementById('salary-summary').innerHTML = '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无数据，请通过上方表单添加工人</div>';
+    document.getElementById('salary-summary').innerHTML = '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无数据，请通过下方表单添加工人</div>';
     document.getElementById('salary-table').innerHTML = '';
     Object.values(salaryCharts).forEach(c => { try { c.destroy(); } catch(e){} });
     salaryCharts = {};
@@ -1122,7 +1155,7 @@ function renderSalary() {
     }
   });
 
-  // Table — group by process (no rowspan, consistent column count)
+  // Table — group by process
   let tableHtml = `<table><thead><tr><th>工序</th><th>工人</th><th class="text-right">完成件数</th><th class="text-right">单件工价</th><th class="text-right">月工资</th><th class="text-center">操作</th></tr></thead><tbody>`;
   const procOrder = [];
   const seenProc = {};
